@@ -1,0 +1,52 @@
+import yfinance as yf
+import matplotlib.pyplot as plt
+import pandas as pd
+
+def get_stock_data(ticker_symbol="AAPL"):
+    """
+    Fetches real-time info and historical data for a given ticker symbol.
+    """
+    stock = yf.Ticker(ticker_symbol)
+
+    # Fetch real-time info (current price, market cap, etc.)
+    stock_info = stock.info
+    
+    # Fetch historical data for the last year
+    historical_data = stock.history(period="1y")
+
+    if not historical_data.empty:
+        # Get current price (last closing price from the historical data)
+        current_price = historical_data['Close'].iloc[-1]
+
+        # Get market cap (if available in info)
+        market_cap = stock_info.get('marketCap', 'N/A')
+        
+        print(f"--- Stock Information for {ticker_symbol} ---")
+        print(f"Current Price: ${current_price:.2f}")
+
+        if market_cap != 'N/A':
+            print(f"Market Cap: ${market_cap/1e12:.2f}T")
+        else:
+            print("Market Cap: N/A")
+        
+        # Plot the closing prices
+        plot_stock_data(historical_data, ticker_symbol)
+    else:
+        print(f"No data available for ticker symbol: {ticker_symbol}")
+
+def plot_stock_data(data, ticker_symbol):
+    """
+    Plots the closing price history using matplotlib.
+    """
+    plt.figure(figsize=(10, 6))
+    plt.plot(data['Close'], label='Closing Price', color='blue')
+    plt.title(f"{ticker_symbol} Stock Closing Prices (Last Year)")
+    plt.xlabel("Date")
+    plt.ylabel("Price (USD)")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+# Example usage for $AAPL
+if __name__ == "__main__":
+    get_stock_data("AAPL")
