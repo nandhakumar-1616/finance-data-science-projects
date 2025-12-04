@@ -1,0 +1,48 @@
+import csv
+import os
+from datetime import datetime
+from Pathlib import Path
+
+class BudgetTracker:
+    def __init__(self, filename="budget_expenses.csv"):
+        self.filename = filename
+        self.ensure_file_exists()
+
+    def ensure_file_exists(self):
+        if not os.path.isfile(self.filename):
+            with open(self.filename, mode='w', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(["Date", "Type", "Category", "Amount", "Description"])
+
+    def add_transaction(self, transaction_type, category, amount, description):
+        """Add income or expense"""
+        with open(self.filename, 'a', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                datetime.now().strftime('%Y-%m-%d'),
+                transaction_type,
+                category,
+                amount,
+                description
+            ])
+        print(f"✓ {transaction_type} of ${amount} added to {category}")
+   
+    def get_summary(self):
+        """Display overall summary"""
+        income = 0
+        expenses = 0
+
+        if not os.path.exists(self.filename):   
+            print("No transactions yet.")
+            return
+       
+        with open(self.filename, 'r') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if row['Type'] == 'Income':
+                    income += float(row['Amount'])
+                else:
+                    expenses += float(row['Amount'])
+
+    print("\n--- Budget Summary ---")
+    
