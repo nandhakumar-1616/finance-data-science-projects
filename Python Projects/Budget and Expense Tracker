@@ -44,5 +44,31 @@ class BudgetTracker:
                 else:
                     expenses += float(row['Amount'])
 
-    print("\n--- Budget Summary ---")
+        print("\n--- Budget Summary ---")
+        print(f"Total Income: ${income:.2f}")
+        print(f"Total Expenses: ${expenses:.2f}")
+        print(f"Net: ${income - expenses:.2f}")
     
+    def get_category_breakdown(self):
+        """Display expenses by category"""
+        categories = {}
+       
+        with open(self.filename, 'r') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if row['Type'] == 'Expense':
+                    cat = row['Category']
+                    amount = float(row['Amount'])
+                    categories[cat] = categories.get(cat, 0) + amount
+       
+        if not categories:
+            print("No expenses recorded.")
+            return
+       
+        print("\n=== Expenses By Category ===")
+        for cat, amount in sorted(categories.items(), key=lambda x: x[1], reverse=True):
+            print(f"{cat}: ${amount:.2f}")
+    
+    #Finish out the main method on Monday
+    def main():
+        
