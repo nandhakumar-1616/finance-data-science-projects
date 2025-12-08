@@ -1,7 +1,6 @@
 import csv
 import os
 from datetime import datetime
-from Pathlib import Path
 
 class BudgetTracker:
     def __init__(self, filename="budget_expenses.csv"):
@@ -68,7 +67,34 @@ class BudgetTracker:
         print("\n=== Expenses By Category ===")
         for cat, amount in sorted(categories.items(), key=lambda x: x[1], reverse=True):
             print(f"{cat}: ${amount:.2f}")
+
+def main():
+    tracker = BudgetTracker()
+   
+    while True:
+        print("\n1. Add Expense\n2. Add Income\n3. View Summary\n4. View by Category\n5. Exit")
+        choice = input("Choose: ").strip()
+       
+        if choice == '1':
+            cat = input("Category: ").strip()
+            amt = float(input("Amount: "))
+            desc = input("Description: ").strip()
+            tracker.add_transaction("Expense", cat, amt, desc)
+        elif choice == '2':
+            cat = input("Source: ").strip()
+            amt = float(input("Amount: "))
+            desc = input("Description: ").strip()
+            tracker.add_transaction("Income", cat, amt, desc)
+        elif choice == '3':
+            tracker.get_summary()
+        elif choice == '4':
+            tracker.get_category_breakdown()
+        elif choice == '5':
+            break
+
+if __name__ == "__main__":
+    main()
+
+
     
-    #Finish out the main method on Monday
-    def main():
-        
+    
