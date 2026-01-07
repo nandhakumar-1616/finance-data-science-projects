@@ -6,7 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
-from statsmodels.tsa.seasonal import seasonal_decompose
+#from statsmodels.tsa.seasonal import seasonal_decompose
 
 
 class exploratory_data_analysis:
@@ -62,7 +62,7 @@ class exploratory_data_analysis:
         return self.df
 
     def clean_data(self):
-        """Clean the data: drop NA, ensure datetime index"""
+        """Clean the data"""
         self.df = self.df.dropna()
         self.df.index = pd.to_datetime(self.df.index)
 
@@ -90,3 +90,48 @@ class exploratory_data_analysis:
         """Calculate daily returns"""
         self.df['Returns'] = self.df['Close'].pct_change()
         self.df = self.df.dropna()
+    
+    def plot_returns_histogram(self):
+        """Plot histogram of daily returns"""
+        plt.figure()
+        sns.histplot(self.df['Returns'], kde=True)
+        plt.title('Distribution of Daily Returns')
+        plt.show()
+
+
+    def correlation_matrix(self):
+        """Plot correlation matrix"""
+        corr = self.df.corr()
+        plt.figure()
+        sns.heatmap(corr, annot=True, cmap='coolwarm')
+        plt.title('Correlation Matrix')
+        plt.show()
+
+
+    def rolling_volatility(self):
+        """Calculate and plot rolling volatility"""
+        if 'Returns' not in self.df.columns:
+            self.calculate_returns()
+        self.df['Volatility'] = self.df['Returns'].rolling(window=30).std()
+        plt.figure(figsize=(10, 5))
+        plt.plot(self.df['Volatility'])
+        plt.title('30-Day Rolling Volatility')
+        plt.xlabel('Date')
+        plt.ylabel('Volatility')
+        plt.show()
+
+
+    def decompose_time_series(self):
+        """Decompose time series into trend, seasonal, residual"""
+        decomposition = seasonal_decompose(self.df['Close'], model='additive', period=252)
+        fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(10, 8))
+        decomposition.observed.plot(ax=ax1)
+        ax1.set_title('Observed')
+        decomposition.trend.plot(ax=ax2)
+        ax2.set_title('Trend')
+        decomposition.seasonal.plot(ax=ax3)
+        ax3.set_title('Seasonal')
+        decomposition.resid.plot(ax=ax4)
+        ax4.set_title('Residual')
+        plt.tight_layout()
+        plt.show()
