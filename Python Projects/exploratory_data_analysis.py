@@ -6,8 +6,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
-#from statsmodels.tsa.seasonal import seasonal_decompose
+#learned about new library statsmodels for time series decomposition graph on 1/6
+from statsmodels.tsa.seasonal import seasonal_decompose
 
+#On Friday, write new methods that highlight key patterns in the chosen dataset; identify trends, seasonality, outliers, and relationships.
 
 class exploratory_data_analysis:
     def __init__(self, filename):
@@ -115,7 +117,7 @@ class exploratory_data_analysis:
         self.df['Volatility'] = self.df['Returns'].rolling(window=30).std()
         plt.figure(figsize=(10, 5))
         plt.plot(self.df['Volatility'])
-        plt.title('30-Day Rolling Volatility')
+        plt.title('3 Year Rolling Volatility')
         plt.xlabel('Date')
         plt.ylabel('Volatility')
         plt.show()
