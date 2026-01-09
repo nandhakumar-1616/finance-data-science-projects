@@ -9,14 +9,11 @@ import numpy as np
 #learned about new library statsmodels for time series decomposition graph on 1/6
 from statsmodels.tsa.seasonal import seasonal_decompose
 
-#On Friday, write new methods that highlight key patterns in the chosen dataset; identify trends, seasonality, outliers, and relationships.
-
 class exploratory_data_analysis:
     def __init__(self, filename):
         self.filename = filename
 
     def load_data(self):
-        """Load data from CSV file"""
         data = []
         if not os.path.isfile(self.filename):
             print("File does not exist.")
@@ -29,8 +26,14 @@ class exploratory_data_analysis:
                 data.append(row)
         return data
 
+    def load_data_pandas(self):
+        if not os.path.isfile(self.filename):
+            print("File does not exist.")
+            return None
+        self.df = pd.read_csv(self.filename)
+        return self.df
+
     def summarize_data(self):
-        """Provide summary statistics of the data"""
         data = self.load_data()
         if not data:
             print("No data to analyze.")
@@ -46,7 +49,6 @@ class exploratory_data_analysis:
                 print(f"  {key}: {value}")
 
     def analyze_column(self, column_name):
-        """Analyze a specific column"""
         data = self.load_data()
         if not data:
             print("No data to analyze.")
@@ -59,21 +61,17 @@ class exploratory_data_analysis:
         print(f"Unique Values ({len(unique_values)}): {unique_values}")
 
     def download_stock_data(self, ticker='^GSPC', start='2020-01-01', end='2023-01-01'):
-        """Download historical stock data using yfinance"""
         self.df = yfinance.download(ticker, start=start, end=end)
         return self.df
 
     def clean_data(self):
-        """Clean the data"""
         self.df = self.df.dropna()
         self.df.index = pd.to_datetime(self.df.index)
 
     def summary_stats(self):
-        """Print summary statistics"""
         print(self.df.describe())
 
     def plot_time_series(self):
-        """Plot time series of closing prices"""
         plt.figure(figsize=(10, 5))
         plt.plot(self.df['Close'])
         plt.title('Stock Price Over Time')
@@ -82,19 +80,16 @@ class exploratory_data_analysis:
         plt.show()
 
     def plot_histogram(self):
-        """Plot histogram of closing prices"""
         plt.figure()
         sns.histplot(self.df['Close'], kde=True)
         plt.title('Distribution of Closing Prices')
         plt.show()
 
     def calculate_returns(self):
-        """Calculate daily returns"""
         self.df['Returns'] = self.df['Close'].pct_change()
         self.df = self.df.dropna()
     
     def plot_returns_histogram(self):
-        """Plot histogram of daily returns"""
         plt.figure()
         sns.histplot(self.df['Returns'], kde=True)
         plt.title('Distribution of Daily Returns')
@@ -102,7 +97,6 @@ class exploratory_data_analysis:
 
 
     def correlation_matrix(self):
-        """Plot correlation matrix"""
         corr = self.df.corr()
         plt.figure()
         sns.heatmap(corr, annot=True, cmap='coolwarm')
@@ -111,7 +105,6 @@ class exploratory_data_analysis:
 
 
     def rolling_volatility(self):
-        """Calculate and plot rolling volatility"""
         if 'Returns' not in self.df.columns:
             self.calculate_returns()
         self.df['Volatility'] = self.df['Returns'].rolling(window=30).std()
@@ -124,7 +117,6 @@ class exploratory_data_analysis:
 
 
     def decompose_time_series(self):
-        """Decompose time series into trend, seasonal, residual"""
         decomposition = seasonal_decompose(self.df['Close'], model='additive', period=252)
         fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(10, 8))
         decomposition.observed.plot(ax=ax1)
@@ -136,4 +128,67 @@ class exploratory_data_analysis:
         decomposition.resid.plot(ax=ax4)
         ax4.set_title('Residual')
         plt.tight_layout()
+        plt.show()
+
+    def check_data_quality(self):
+        if not hasattr(self, 'df') or self.df is None:
+            print("Data not loaded. Please load data first.")
+            return
+        print("Data Shape:", self.df.shape)
+        print("\nData Types:")
+        print(self.df.dtypes)
+        print("\nMissing Values per Column:")
+        print(self.df.isnull().sum())
+        print(f"\nTotal Duplicates: {self.df.duplicated().sum()}")
+
+    def detect_outliers(self, column_name):
+        if not hasattr(self, 'df') or self.df is None:
+            print("Data not loaded.")
+            return None
+        if column_name not in self.df.columns:
+            print(f"Column '{column_name}' not found.")
+            return None
+        if not pd.api.types.is_numeric_dtype(self.df[column_name]):
+            print(f"Column '{column_name}' is not numeric.")
+            return None
+        Q1 = self.df[column_name].quantile(0.25)
+        Q3 = self.df[column_name].quantile(0.75)
+        IQR = Q3 - Q1
+        lower_bound = Q1 - 1.5 * IQR
+        upper_bound = Q3 + 1.5 * IQR
+        outliers = self.df[(self.df[column_name] < lower_bound) | (self.df[column_name] > upper_bound)]
+        print(f"Outliers in '{column_name}': {len(outliers)} rows")
+        print(f"Lower bound: {lower_bound}, Upper bound: {upper_bound}")
+        return outliers
+
+    def plot_trends(self, date_column, value_column):
+        if not hasattr(self, 'df') or self.df is None:
+            print("Data not loaded.")
+            return
+        if date_column not in self.df.columns or value_column not in self.df.columns:
+            print("Specified columns not found.")
+            return
+        temp_df = self.df.copy()
+        temp_df[date_column] = pd.to_datetime(temp_df[date_column], errors='coerce')
+        temp_df = temp_df.dropna(subset=[date_column])
+        plt.figure(figsize=(12, 6))
+        plt.plot(temp_df[date_column], temp_df[value_column])
+        plt.title(f'Trend of {value_column} over {date_column}')
+        plt.xlabel(date_column)
+        plt.ylabel(value_column)
+        plt.xticks(rotation=45)
+        plt.show()
+
+    def analyze_relationships(self):
+        if not hasattr(self, 'df') or self.df is None:
+            print("Data not loaded.")
+            return
+        numeric_cols = self.df.select_dtypes(include=[np.number]).columns
+        if len(numeric_cols) < 2:
+            print("Not enough numeric columns for correlation analysis.")
+            return
+        corr_matrix = self.df[numeric_cols].corr()
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt='.2f')
+        plt.title('Correlation Matrix')
         plt.show()

@@ -27,6 +27,18 @@ eda.analyze_column('Year')
 print("5. analyze_column('Suicide Rate')")
 eda.analyze_column('Suicide Rate')
 
+if __name__ == "__main__":
+    eda = exploratory_data_analysis('world_suicide_rates.csv')
+    eda.load_data_pandas()
+    print("--- Data Check ---")
+    eda.check_data_quality()
+    print("\n--- Outlier Detection ---")
+    outliers = eda.detect_outliers('Suicide Rate')
+    print("\n--- Plotting Trends ---")
+    eda.plot_trends('Year', 'Suicide Rate')
+    print("\n --- Analyzing Relationships ---")
+    eda.analyze_relationships()
+
 # Test stock methods
 print("\n--- Testing Stock Methods ---")
 print("6. download_stock_data")
