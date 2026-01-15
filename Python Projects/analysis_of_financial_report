@@ -1,0 +1,39 @@
+from bs4 import BeautifulSoup
+import requests
+import pandas as pd
+
+url = "https://en.wikipedia.org/wiki/List_of_largest_companies_by_revenue#List"
+
+response = requests.get(url)
+soup = BeautifulSoup(response.text, "html.parser")
+
+table = soup.find("table", class_="wikitable")
+
+df = pd.read_html(str(table))[0]
+
+print("Raw Table Extracted:")
+print(df.head())
+
+df["Revenue (USD millions)"] = (
+    df["Revenue (USD millions)"]
+    .astype(str)
+    .str.replace(",", "")
+    .astype(float)
+)
+
+if "Employees" in df.columns:
+    df["Employees"] = (
+        df["Employees"]
+        .astype(str)
+        .str.replace(",", "")
+        .str.extract(r"(\d+)")
+        .astype(float)
+    )
+
+print("\nCleaned Data:")
+print(df.head())
+
+#stopped here 1/15
+
+df.to_csv("largest_companies_by_revenue.csv", index=False)
+print("\nData saved to 'largest_companies_by_revenue.csv'")
