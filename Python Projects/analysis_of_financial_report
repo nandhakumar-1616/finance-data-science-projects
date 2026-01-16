@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
 import requests
 import pandas as pd
+import json
 
 url = "https://en.wikipedia.org/wiki/List_of_largest_companies_by_revenue#List"
 
@@ -8,6 +9,8 @@ response = requests.get(url)
 soup = BeautifulSoup(response.text, "html.parser")
 
 table = soup.find("table", class_="wikitable")
+
+data = json.loads(soup.find("script", type="application/ld+json").string)
 
 df = pd.read_html(str(table))[0]
 
@@ -33,7 +36,38 @@ if "Employees" in df.columns:
 print("\nCleaned Data:")
 print(df.head())
 
-#stopped here 1/15
-
 df.to_csv("largest_companies_by_revenue.csv", index=False)
 print("\nData saved to 'largest_companies_by_revenue.csv'")
+
+top10 = df.sort_values("Revenue (USD millions)", ascending=False).head(10)
+print("\nTop 10 Companies by Revenue:")
+print(top10[["Company", "Industry", "Revenue (USD millions)"]])
+
+print("\nSummary Statistics for Revenue:")
+print(df["Revenue (USD millions)"].describe())
+
+industry_revenue = df.groupby("Industry")["Revenue (USD millions)"].sum().sort_values(ascending=False)
+print("\nTotal Revenue by Industry:")
+print(industry_revenue)
+
+if "Employees" in df.columns:
+    df["Revenue per Employee"] = df["Revenue (USD millions)"] * 1_000_000 / df["Employees"]
+    highest_rev_per_employee = df.sort_values("Revenue per Employee", ascending=False).head(10)
+    
+    print("\nTop 10 Companies by Revenue per Employee:")
+    print(highest_rev_per_employee[["Company", "Revenue per Employee"]])
+
+print("\nData Types:")
+print(df.dtypes)
+
+print("\nMissing Values:")
+print(df.isnull().sum())
+
+print("\nDataFrame Info:")
+df.info()
+
+print("\nDataFrame Shape:")
+print(df.shape)
+
+print("\nColumn Names:")
+print(df.columns.tolist())
