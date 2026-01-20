@@ -2,8 +2,13 @@ from bs4 import BeautifulSoup
 import requests
 import pandas as pd
 import json
+import matplotlib.pyplot as plt
+
+plt.style.use("ggplot")
 
 url = "https://en.wikipedia.org/wiki/List_of_largest_companies_by_revenue#List"
+
+company = "Walmart"
 
 response = requests.get(url)
 soup = BeautifulSoup(response.text, "html.parser")
@@ -71,3 +76,59 @@ print(df.shape)
 
 print("\nColumn Names:")
 print(df.columns.tolist())
+
+#1/20 started here
+
+#fix financial url during the week of 1/22-1/28
+
+FINANCIAL_URL = "https://en.wikipedia.org/wiki/Financial_performance_of_Walmart"
+
+company_data = df[df["Company"] == company]
+
+if company_data.empty:
+    print("Company not found in revenue table.")
+else:
+    revenue = float(company_data["Revenue (USD millions)"].values[0])
+    print(f"Revenue for {company}: ${revenue} million")
+
+response2 = requests.get(FINANCIAL_URL)
+soup2 = BeautifulSoup(response2.text, "html.parser")
+
+profit = 16000  # Example: 16 billion profit
+eps = 6.45      # Example earnings per share
+
+print(f"Profit for {company}: ${profit} million")
+print(f"Earnings per Share (EPS): ${eps}")
+
+financial_df = pd.DataFrame({
+    "Company": [company],
+    "Revenue (millions)": [revenue],
+    "Profit (millions)": [profit],
+    "EPS ($)": [eps]
+})
+
+# Handle missing values
+financial_df.fillna(0, inplace=True)
+
+print("\nCleaned Financial Dataset:")
+print(financial_df)
+
+financial_df["Profit Margin (%)"] = (
+    financial_df["Profit (millions)"] /
+    financial_df["Revenue (millions)"] * 100
+)
+
+print("\nFinancial Analysis:")
+print(financial_df[["Company", "Profit Margin (%)"]])
+
+plt.figure(figsize=(8, 5))
+plt.bar(["Revenue", "Profit"], [revenue, profit])
+plt.title(f"{company} Revenue vs Profit")
+plt.ylabel("USD (millions)")
+plt.show()
+
+plt.figure(figsize=(6, 4))
+plt.bar(["EPS"], [eps])
+plt.title(f"{company} Earnings Per Share")
+plt.ylabel("USD")
+plt.show()
