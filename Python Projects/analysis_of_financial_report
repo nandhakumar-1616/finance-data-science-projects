@@ -1,70 +1,35 @@
 from bs4 import BeautifulSoup
 import requests
 import pandas as pd
-import json
 import matplotlib.pyplot as plt
 
 plt.style.use("ggplot")
 
-url = "https://en.wikipedia.org/wiki/List_of_largest_companies_by_revenue#List"
+URL = "https://en.wikipedia.org/wiki/List_of_largest_companies_by_revenue"
+COMPANY = "Walmart"
 
-company = "Walmart"
+#add headers here if website blocks requests
 
-print(f"Fetching data from {url}...")
-response = requests.get(url, timeout=10)
+print(f"Fetching data from {URL}...")
+response = requests.get(URL, timeout=10)
 soup = BeautifulSoup(response.text, "html.parser")
 
-#Try to find the table, if its not there then create a sample dataset
-#Fix error in table extraction
 table = soup.find("table", class_="wikitable")
-if table is None:
-    print("Primary table search failed, trying alternative methods.")
-    #Finds all tables and picks the largest one
-    tables = soup.find_all("table", {"class": lambda x: x and "wikitable" in x})
-    if tables:
-        table = max(tables, key=lambda t: len(t.find_all("tr")))
-        print(f"Found {len(tables)} tables, using the largest one.")
 
-#extract JSON data if available
-json_data = soup.find("script", type="application/ld+json")
-if json_data:
-    try:
-        data = json.loads(json_data.string)
-    except (json.JSONDecodeError, TypeError):
-        print("Warning: Could not parse JSON data from the page.")
-else:
-    print("Note: JSON-LD data not found on the page.")
+df = pd.read_html(str(table))[0]
 
-if table is None:
-    print("\nError: Could not find the table on the Wikipedia page.")
-    print("Creating a sample dataset for demonstration.")
-
-    df = pd.DataFrame({
-        "Company": ["Walmart", "Saudi Aramco", "State Grid", "Amazon", "China National Petroleum"],
-        "Revenue (USD millions)": [648125, 160192, 430081, 469822, 411875],
-        "Employees": [2100000, 76000, 1580000, 1541000, 1639000],
-        "Industry": ["Retail", "Petroleum", "Utilities", "Retail/Tech", "Petroleum"]
-    })
-else:
-    try:
-        df = pd.read_html(str(table))[0]
-    except Exception as e:
-        print(f"Error parsing table: {e}")
-        print("Using sample dataset instead.")
-        df = pd.DataFrame({
-            "Company": ["Walmart", "Saudi Aramco", "State Grid", "Amazon", "China National Petroleum"],
-            "Revenue (USD millions)": [648125, 160192, 430081, 469822, 411875],
-            "Employees": [2100000, 76000, 1580000, 1541000, 1639000],
-            "Industry": ["Retail", "Petroleum", "Utilities", "Retail/Tech", "Petroleum"]
-        })
-
-print("Raw Table Extracted:")
+print("\nRaw Extracted Data:")
 print(df.head())
 
-df["Revenue (USD millions)"] = (
-    df["Revenue (USD millions)"]
+df.columns = df.columns.str.replace("\n", " ").str.strip()
+
+revenue_col = [c for c in df.columns if "Revenue" in c][0]
+
+df[revenue_col] = (
+    df[revenue_col]
     .astype(str)
     .str.replace(",", "")
+    .str.extract(r"(\d+)")
     .astype(float)
 )
 
@@ -81,79 +46,40 @@ print("\nCleaned Data:")
 print(df.head())
 
 df.to_csv("largest_companies_by_revenue.csv", index=False)
-print("\nData saved to 'largest_companies_by_revenue.csv'")
+print("\nSaved to largest_companies_by_revenue.csv")
 
-df.reset_index(drop=True, inplace=True)
-top10 = df.sort_values("Revenue (USD millions)", ascending=False).head(10)
+top10 = df.sort_values(revenue_col, ascending=False).head(10)
 print("\nTop 10 Companies by Revenue:")
-print(top10[["Company", "Industry", "Revenue (USD millions)"]])
-
-print("\nSummary Statistics for Revenue:")
-print(df["Revenue (USD millions)"].describe())
-
-industry_revenue = df.groupby("Industry")["Revenue (USD millions)"].sum().sort_values(ascending=False)
-print("\nTotal Revenue by Industry:")
-print(industry_revenue)
+print(top10[["Company", revenue_col]])
 
 if "Employees" in df.columns:
-    df.reset_index(drop=True, inplace=True)
-    df["Revenue per Employee"] = df["Revenue (USD millions)"] * 1_000_000 / df["Employees"]
-    highest_rev_per_employee = df.sort_values("Revenue per Employee", ascending=False).head(10)
-    #does not work, ranking order itself is wrong
+    df = df.dropna(subset=["Employees"])
+    df["Revenue per Employee"] = (df[revenue_col] * 1_000_000) / df["Employees"]
+
+    top_efficiency = df.sort_values("Revenue per Employee", ascending=False).head(10)
     print("\nTop 10 Companies by Revenue per Employee:")
-    print(highest_rev_per_employee[["Company", "Revenue per Employee"]])
+    print(top_efficiency[["Company", "Revenue per Employee"]])
 
-print("\nData Types:")
-print(df.dtypes)
-
-print("\nMissing Values:")
-print(df.isnull().sum())
-
-print("\nDataFrame Info:")
-df.info()
-
-print("\nDataFrame Shape:")
-print(df.shape)
-
-print("\nColumn Names:")
-print(df.columns.tolist())
-
-print("\n" + "="*45)
-print("Starting Financial Performance Analysis")
-print("="*45)
-
-#Fix financial url
-FINANCIAL_URL = "https://en.wikipedia.org/wiki/Financial_performance_of_Walmart"
-
-company_data = df[df["Company"] == company]
-
-if company_data.empty:
-    print("Company not found in revenue table.")
-else:
-    revenue = float(company_data["Revenue (USD millions)"].values[0])
-    print(f"Revenue for {company}: ${revenue} million")
-
-response2 = requests.get(FINANCIAL_URL)
+FIN_URL = "https://stock.walmart.com/financial-information/balance-sheet"
+response2 = requests.get(FIN_URL)
 soup2 = BeautifulSoup(response2.text, "html.parser")
 
-profit = 16000  #Example: 16 billion profit
-eps = 6.45      #Example earnings per share
+fin_table = soup2.find("table", class_="wikitable")
+fin_df = pd.read_html(str(fin_table))[0]
 
-print(f"Profit for {company}: ${profit} million")
-print(f"Earnings per Share (EPS): ${eps}")
+fin_df.columns = fin_df.columns.str.strip()
+latest = fin_df.iloc[-1]
+
+revenue = float(latest["Revenue"].replace(",", ""))
+profit = float(latest["Net income"].replace(",", ""))
+eps = float(latest["EPS"])
 
 financial_df = pd.DataFrame({
-    "Company": [company],
+    "Company": [COMPANY],
     "Revenue (millions)": [revenue],
     "Profit (millions)": [profit],
     "EPS ($)": [eps]
 })
-
-#Handle missing values
-financial_df.fillna(0, inplace=True)
-
-print("\nCleaned Financial Dataset:")
-print(financial_df)
 
 financial_df["Profit Margin (%)"] = (
     financial_df["Profit (millions)"] /
@@ -161,16 +87,16 @@ financial_df["Profit Margin (%)"] = (
 )
 
 print("\nFinancial Analysis:")
-print(financial_df[["Company", "Profit Margin (%)"]])
+print(financial_df)
 
 plt.figure(figsize=(8, 5))
 plt.bar(["Revenue", "Profit"], [revenue, profit])
-plt.title(f"{company} Revenue vs Profit")
+plt.title(f"{COMPANY} Revenue vs Profit")
 plt.ylabel("USD (millions)")
 plt.show()
 
 plt.figure(figsize=(6, 4))
 plt.bar(["EPS"], [eps])
-plt.title(f"{company} Earnings Per Share")
+plt.title(f"{COMPANY} Earnings Per Share")
 plt.ylabel("USD")
 plt.show()
