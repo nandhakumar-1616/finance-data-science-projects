@@ -8,15 +8,15 @@ plt.style.use("ggplot")
 URL = "https://en.wikipedia.org/wiki/List_of_largest_companies_by_revenue"
 COMPANY = "Walmart"
 
-#add headers here if website blocks requests
+BASE_HEADERS = {
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    "accept": "application/json",
+    "accept-language": "en-US",
+    "accept-encoding": "gzip, deflate, br, zstd",
+}
 
 print(f"Fetching data from {URL}...")
-response = requests.get(URL, timeout=10)
-soup = BeautifulSoup(response.text, "html.parser")
-
-table = soup.find("table", class_="wikitable")
-
-df = pd.read_html(str(table))[0]
+df = pd.read_html(URL)[0]
 
 print("\nRaw Extracted Data:")
 print(df.head())
@@ -61,24 +61,12 @@ if "Employees" in df.columns:
     print(top_efficiency[["Company", "Revenue per Employee"]])
 
 FIN_URL = "https://stock.walmart.com/financial-information/balance-sheet"
-response2 = requests.get(FIN_URL)
-soup2 = BeautifulSoup(response2.text, "html.parser")
-
-fin_table = soup2.find("table", class_="wikitable")
-fin_df = pd.read_html(str(fin_table))[0]
-
-fin_df.columns = fin_df.columns.str.strip()
-latest = fin_df.iloc[-1]
-
-revenue = float(latest["Revenue"].replace(",", ""))
-profit = float(latest["Net income"].replace(",", ""))
-eps = float(latest["EPS"])
 
 financial_df = pd.DataFrame({
     "Company": [COMPANY],
-    "Revenue (millions)": [revenue],
-    "Profit (millions)": [profit],
-    "EPS ($)": [eps]
+    "Revenue (millions)": [648_125],
+    "Profit (millions)": [15_511],   
+    "EPS ($)": [5.74]                 
 })
 
 financial_df["Profit Margin (%)"] = (
@@ -89,14 +77,68 @@ financial_df["Profit Margin (%)"] = (
 print("\nFinancial Analysis:")
 print(financial_df)
 
-plt.figure(figsize=(8, 5))
-plt.bar(["Revenue", "Profit"], [revenue, profit])
-plt.title(f"{COMPANY} Revenue vs Profit")
-plt.ylabel("USD (millions)")
-plt.show()
 
-plt.figure(figsize=(6, 4))
-plt.bar(["EPS"], [eps])
-plt.title(f"{COMPANY} Earnings Per Share")
-plt.ylabel("USD")
-plt.show()
+def plot_revenue_vs_profit(revenue, profit, company_name):
+    plt.figure(figsize=(8, 5))
+    plt.bar(["Revenue", "Profit"], [revenue, profit], color=["#2ecc71", "#3498db"])
+    plt.title(f"{company_name} Revenue vs Profit")
+    plt.ylabel("USD (millions)")
+    plt.grid(axis="y", alpha=0.3)
+    plt.show()
+
+
+def plot_profit_margin(financial_df):
+    plt.figure(figsize=(8, 4))
+    company = financial_df["Company"].iloc[0]
+    margin = financial_df["Profit Margin (%)"].iloc[0]
+    colors = ["#e74c3c" if margin < 5 else "#f39c12" if margin < 10 else "#2ecc71"]
+    plt.barh([company], [margin], color=colors)
+    plt.title("Profit Margin (%)")
+    plt.xlabel("Profit Margin (%)")
+    plt.xlim(0, 20)
+    for i, v in enumerate([margin]):
+        plt.text(v + 0.3, i, f"{v:.2f}%", va="center", fontweight="bold")
+    plt.grid(axis="x", alpha=0.3)
+    plt.show()
+
+
+def plot_revenue_per_employee(df, revenue_col):
+    if "Employees" not in df.columns:
+        print("Employees column not found")
+        return
+    
+    df_temp = df.dropna(subset=["Employees"])
+    df_temp["Revenue per Employee"] = (df_temp[revenue_col] * 1_000_000) / df_temp["Employees"]
+    top_efficiency = df_temp.sort_values("Revenue per Employee", ascending=False).head(10)
+    
+    plt.figure(figsize=(12, 6))
+    plt.barh(top_efficiency["Company"], top_efficiency["Revenue per Employee"], color="#9b59b6")
+    plt.title("Top 10 Companies by Revenue per Employee")
+    plt.xlabel("Revenue per Employee (USD)")
+    plt.grid(axis="x", alpha=0.3)
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_top_companies_revenue(df, revenue_col):
+    top10 = df.sort_values(revenue_col, ascending=False).head(10)
+    
+    plt.figure(figsize=(12, 6))
+    plt.bar(range(len(top10)), top10[revenue_col], color="#1abc9c")
+    plt.xticks(range(len(top10)), top10["Company"], rotation=45, ha="right")
+    plt.title("Top 10 Companies by Revenue")
+    plt.ylabel("Revenue (millions USD)")
+    plt.grid(axis="y", alpha=0.3)
+    plt.tight_layout()
+    plt.show()
+
+
+def main():
+    plot_revenue_vs_profit(revenue, profit, COMPANY)
+    plot_profit_margin(financial_df)
+    plot_revenue_per_employee(df, revenue_col)
+    plot_top_companies_revenue(df, revenue_col)
+
+
+if __name__ == "__main__":
+    main()
