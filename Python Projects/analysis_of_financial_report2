@@ -1,0 +1,57 @@
+import requests
+from bs4 import BeautifulSoup
+import json
+import queue
+import time
+import os
+from dotenv import load_dotenv
+from requests.exceptions import ProxyError, HTTPError
+
+load_dotenv()
+
+BASE_URL = "https://www.walmart.com"
+OUTPUT_FILE = "product_info.jsonl"
+
+BASE_HEADERS = {
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    "accept": "application/json",
+    "accept-language": "en-US",
+    "accept-encoding": "gzip, deflate, br, zstd",
+}
+
+host = 'brd.superproxy.io'
+port = 22225
+username = os.environ['BRD_USERNAME']
+password = os.environ['BRD_PASSWORD']
+
+proxy_url = f'http://{username}:{password}@{host}:{port}'
+
+proxies = {
+    'http': proxy_url,
+    'https': proxy_url
+}
+
+search_queries = ["computers", "laptops", "desktops", "monitors", "printers", "hard+drives", "usb", "cords", "cameras", 
+                  "mouse", "keyboard", "microphones", "speakers", "radio", "tablets", "android", "apple", "watch", "smart+watch", 
+                  "fridge", "airconditioning", "wifi", "router", "modem", "desk", "xbox", "playstation", "nintendo"]
+
+product_queue = queue.Queue()
+seen_urls = set()
+
+#start here on 1/29
+for query in search_queries:
+    search_url = f"{BASE_URL}/search/?query={query}"
+    print(f"Fetching search results for query: {query}")
+    try:
+        response = requests.get(search_url, headers=BASE_HEADERS, proxies=proxies, timeout=10)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        product_links = soup.select('a.product-title-link')
+        for link in product_links:
+            product_url = BASE_URL + link.get('href')
+            if product_url not in seen_urls:
+                seen_urls.add(product_url)
+                product_queue.put(product_url)
+    except (ProxyError, HTTPError) as e:
+        print(f"Error fetching search results for query {query}: {e}")
+
