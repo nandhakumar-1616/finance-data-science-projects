@@ -66,9 +66,68 @@ def get_product_links_from_search_page(query, page_number):
 
             return product_links
         
-        except (ProxyError, HTTPError) as e:
-            #start on 1/30
-            wait_time = backoff_factor * (2 ** attempt)
-            print(f"Error fetching {search_url}: {e}. Retrying in {wait_time} seconds...")
+        except ProxyError as e:
+            wait_time = backoff_factor ** attempt
+            print(f"Proxy error: {e}. Retrying in {wait_time} seconds...")
             time.sleep(wait_time)
+
+        except HTTPError as e:
+            if e.response.status_code == 412:
+                print(f"Precondition Failed (412): {e}. Skipping URL.")
+                break
+            wait_time = backoff_factor ** attempt
+            print(f"HTTP error: {e}. Retrying in {wait_time} seconds...")
+            time.sleep(wait_time)
+
+        except Exception as e:
+            print(f"Failed to get product links for query: {query} on page: {page_number}. Error: {e}")
+            break
+
+    print(f"Skipping query after {max_retries} retries: {query} on page: {page_number}")
+    return []
+
+def get_product_details(product_url):
+    #start 2/2
+    max_retries = 5
+    backoff_factor = 3
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(product_url, headers=BASE_HEADERS, proxies=proxies)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, 'html.parser')
+
+            title = soup.find('h1', class_='prod-ProductTitle').get_text(strip=True) if soup.find('h1', class_='prod-ProductTitle') else 'N/A'
+            price = soup.find('span', class_='price-characteristic').get_text(strip=True) if soup.find('span', class_='price-characteristic') else 'N/A'
+            rating = soup.find('span', class_='ReviewsHeader-ratingPrefix').get_text(strip=True) if soup.find('span', class_='ReviewsHeader-ratingPrefix') else 'N/A'
+            num_reviews = soup.find('span', class_='ReviewsHeader-reviewCount').get_text(strip=True) if soup.find('span', class_='ReviewsHeader-reviewCount') else 'N/A'
+
+            product_info = {
+                "url": product_url,
+                "title": title,
+                "price": price,
+                "rating": rating,
+                "num_reviews": num_reviews
+            }
+
+            return product_info
+        
+        except ProxyError as e:
+            wait_time = backoff_factor ** attempt
+            print(f"Proxy error: {e}. Retrying in {wait_time} seconds...")
+            time.sleep(wait_time)
+
+        except HTTPError as e:
+            if e.response.status_code == 412:
+                print(f"Precondition Failed (412): {e}. Skipping URL.")
+                break
+            wait_time = backoff_factor ** attempt
+            print(f"HTTP error: {e}. Retrying in {wait_time} seconds...")
+            time.sleep(wait_time)
+
+        except Exception as e:
+            print(f"Failed to get product details for URL: {product_url}. Error: {e}")
+            break
+
+    print(f"Skipping product after {max_retries} retries: {product_url}")
+    return None
 
