@@ -7,7 +7,6 @@ from statsmodels.tsa.arima.model import ARIMA
 import warnings
 warnings.filterwarnings('ignore')
 
-
 class TimeSeriesForecaster:
     def __init__(self, data, test_size=0.2):
         self.data = pd.Series(data) if not isinstance(data, pd.Series) else data
@@ -105,6 +104,48 @@ class TimeSeriesForecaster:
             results['ARIMA'] = self.evaluate_model(arima_pred, test_actual)
         
         return results
+    
+    #cross validation
+    def time_series_cross_validation(self, arima_order=(1, 1, 1), n_splits=5, forecast_steps=1):
+        data_len = len(self.data)
+        fold_size = data_len // (n_splits + 1)
+        cv_results = {'fold': [], 'mse': [], 'rmse': [], 'mae': []}
+        
+        for fold in range(n_splits):
+            train_end = fold_size * (fold + 1)
+            test_start = train_end
+            test_end = min(test_start + forecast_steps, data_len)
+            
+            if test_end <= test_start:
+                break
+            
+            train_fold = self.data[:train_end]
+            test_fold = self.data[test_start:test_end]
+            
+            try:
+                model = ARIMA(train_fold, order=arima_order)
+                fitted = model.fit()
+                
+                predictions = fitted.forecast(steps=len(test_fold))
+                
+                fold_metrics = self.evaluate_model(predictions.values, test_fold.values)
+                
+                cv_results['fold'].append(fold + 1)
+                cv_results['mse'].append(fold_metrics['MSE'])
+                cv_results['rmse'].append(fold_metrics['RMSE'])
+                cv_results['mae'].append(fold_metrics['MAE'])
+                
+            except Exception as e:
+                print(f"Error in fold {fold + 1}: {str(e)}")
+                continue
+        
+        cv_df = pd.DataFrame(cv_results)
+        if len(cv_df) > 0:
+            print(f"\nCross-Validation Results ({n_splits} folds):")
+            print(f"Average RMSE: {np.mean(cv_results['rmse']):.4f}")
+            print(f"Average MAE: {np.mean(cv_results['mae']):.4f}")
+        
+        return cv_df
 
 def main():
     print("Time Series Forecasting Module Initialized")
