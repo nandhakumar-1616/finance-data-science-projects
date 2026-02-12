@@ -147,6 +147,61 @@ class TimeSeriesForecaster:
         
         return cv_df
 
+    #Exogenous Features
+    def fit_arima_with_exogenous(self, exogenous_data, order=(1, 1, 1)):
+        if len(exogenous_data) != len(self.train_data):
+            raise ValueError("Length of exogenous data must match training data.")
+        
+        self.arima_exog_model = ARIMA(self.train_data, exog=exogenous_data, order=order)
+        self.arima_exog_fitted = self.arima_exog_model.fit()
+        return self.arima_exog_fitted
+    
+    def arima_exogenous_forecast(self, exogenous_forecast, periods=10):
+        if not hasattr(self, 'arima_exog_fitted'):
+            raise ValueError("ARIMA model with exogenous variables not fitted. Call fit_arima_with_exogenous() first.")
+        
+        forecast_result = self.arima_exog_fitted.get_forecast(steps=periods, exog=exogenous_forecast)
+        return forecast_result.predicted_mean.values
+    
+    #Prediction Intervals
+    def arima_forecast_with_intervals(self, periods=10, alpha=0.05):
+        if not hasattr(self, 'arima_fitted'):
+            raise ValueError("ARIMA model not fitted. Call fit_arima() first.")
+        
+        forecast_result = self.arima_fitted.get_forecast(steps=periods)
+        forecast_mean = forecast_result.predicted_mean.values
+        conf_int = forecast_result.conf_int(alpha=alpha)
+        
+        return forecast_mean, conf_int
+
+    #Evaluation Metrics
+    def plot_forecast(self, forecast, actual=None, title="Forecast vs Actual"):
+        plt.figure(figsize=(12, 6))
+        plt.plot(self.data.index, self.data.values, label='Historical Data', color='blue')
+        forecast_index = range(len(self.data), len(self.data) + len(forecast))
+        plt.plot(forecast_index, forecast, label='Forecast', color='orange')
+        
+        if actual is not None:
+            plt.plot(forecast_index[:len(actual)], actual, label='Actual', color='green')
+        
+        plt.title(title)
+        plt.xlabel('Time')
+        plt.ylabel('Value')
+        plt.legend()
+        plt.show()
+    
+    def plot_residuals(self, residuals):
+        plt.figure(figsize=(12, 6))
+        plt.plot(residuals, label='Residuals', color='red')
+        plt.axhline(0, color='black', linestyle='--')
+        plt.title('Residuals of the Forecast')
+        plt.xlabel('Time')
+        plt.ylabel('Residual Value')
+        plt.legend()
+        plt.show()
+
+#Get data and plug it into the forecaster and see if it works 2/13
+    
 def main():
     print("Time Series Forecasting Module Initialized")
 
