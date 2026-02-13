@@ -6,6 +6,8 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 from statsmodels.tsa.arima.model import ARIMA
 import warnings
 warnings.filterwarnings('ignore')
+# Use non-interactive backend for matplotlib to avoid GUI issues
+plt.switch_backend('Agg')
 
 class TimeSeriesForecaster:
     def __init__(self, data, test_size=0.2):
@@ -188,7 +190,11 @@ class TimeSeriesForecaster:
         plt.xlabel('Time')
         plt.ylabel('Value')
         plt.legend()
-        plt.show()
+        # Save figure instead of showing (allows non-GUI execution)
+        filename = title.replace(' ', '_').lower() + '.png'
+        plt.savefig(filename, dpi=100)
+        print(f"  [Plot saved as {filename}]")
+        plt.close()
     
     def plot_residuals(self, residuals):
         plt.figure(figsize=(12, 6))
@@ -198,13 +204,81 @@ class TimeSeriesForecaster:
         plt.xlabel('Time')
         plt.ylabel('Residual Value')
         plt.legend()
-        plt.show()
+        # Save figure instead of showing (allows non-GUI execution)
+        filename = 'residuals_of_forecast.png'
+        plt.savefig(filename, dpi=100)
+        print(f"  [Plot saved as {filename}]")
+        plt.close()
 
 #Get data and plug it into the forecaster and see if it works 2/13
-    
+
 def main():
     print("Time Series Forecasting Module Initialized")
-
-
+    
+    try:
+        data_path = 'world_suicide_rates.csv'
+        df = pd.read_csv(data_path)
+        
+        if 'Suicide Rate' in df.columns:
+            timeseries_data = df['Suicide Rate'].dropna()
+        else:
+            numeric_cols = [col for col in df.columns if df[col].dtype in [np.number] and col != 'Year']
+            if numeric_cols:
+                timeseries_data = df[numeric_cols[0]].dropna()
+            else:
+                numeric_cols = df.select_dtypes(include=[np.number]).columns
+                if len(numeric_cols) > 0:
+                    timeseries_data = df[numeric_cols[0]].dropna()
+                else:
+                    raise ValueError("No numeric columns found in CSV")
+    except FileNotFoundError:
+        print("Data file not found. Using synthetic data for demonstration.")
+        np.random.seed(42)
+        timeseries_data = pd.Series(100 + np.random.randn(100).cumsum())
+    except Exception as e:
+        print(f"Error loading data: {str(e)}. Using synthetic data for demonstration.")
+        np.random.seed(42)
+        timeseries_data = pd.Series(100 + np.random.randn(100).cumsum())
+    
+    print(f"\nData shape: {timeseries_data.shape}")
+    print(f"Data range: {timeseries_data.min():.2f} to {timeseries_data.max():.2f}")
+    
+    forecaster = TimeSeriesForecaster(timeseries_data, test_size=0.2)
+    
+    forecast_periods = 10
+    print(f"\nForecasting {forecast_periods} periods ahead...\n")
+    
+    # 1. Baseline Models
+    print("BASELINE MODELS EVALUATION")
+    
+    # Naive Forecast
+    naive_pred = forecaster.naive_forecast(periods=forecast_periods)
+    print(f"\nNaive Forecast (next {forecast_periods} values):")
+    print(naive_pred)
+    
+    # Seasonal Naive Forecast
+    seasonal_pred = forecaster.seasonal_naive_forecast(season_length=12, periods=forecast_periods)
+    print(f"\nSeasonal Naive Forecast (season length=12):")
+    print(seasonal_pred)
+    
+    # Drift Forecast
+    drift_pred = forecaster.drift_forecast(periods=forecast_periods)
+    print(f"\nDrift Forecast:")
+    print(drift_pred)
+    
+    # 2. Exponential Smoothing
+    print("EXPONENTIAL SMOOTHING")
+    exp_smooth_pred = forecaster.exponential_smoothing(alpha=0.3, periods=forecast_periods)
+    print(f"\nExponential Smoothing Forecast (alpha=0.3):")
+    print(exp_smooth_pred)
+    
+    # 3. Moving Average
+    print("\n" + "-" * 60)
+    print("MOVING AVERAGE")
+    print("-" * 60)
+    ma_pred = forecaster.moving_average_forecast(window=5, periods=forecast_periods)
+    print(f"\nMoving Average Forecast (window=5):")
+    print(ma_pred)
+    
 if __name__ == "__main__":
     main()
