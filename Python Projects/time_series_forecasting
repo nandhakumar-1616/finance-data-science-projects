@@ -210,19 +210,17 @@ class TimeSeriesForecaster:
         print(f"  [Plot saved as {filename}]")
         plt.close()
 
-#Get data and plug it into the forecaster and see if it works 2/13
-
 def main():
     print("Time Series Forecasting Module Initialized")
     
     try:
-        data_path = 'world_suicide_rates.csv'
+        data_path = 'nvidia_stock_weekly.csv'
         df = pd.read_csv(data_path)
         
-        if 'Suicide Rate' in df.columns:
-            timeseries_data = df['Suicide Rate'].dropna()
+        if 'Close' in df.columns:
+            timeseries_data = df['Close'].dropna()
         else:
-            numeric_cols = [col for col in df.columns if df[col].dtype in [np.number] and col != 'Year']
+            numeric_cols = [col for col in df.columns if df[col].dtype in [np.number] and col != 'Date']
             if numeric_cols:
                 timeseries_data = df[numeric_cols[0]].dropna()
             else:
@@ -279,6 +277,33 @@ def main():
     ma_pred = forecaster.moving_average_forecast(window=5, periods=forecast_periods)
     print(f"\nMoving Average Forecast (window=5):")
     print(ma_pred)
+    
+    # 4. ARIMA Model
+    print("\n" + "-" * 60)
+    print("ARIMA MODEL")
+    print("-" * 60)
+    forecaster.fit_arima(order=(1, 1, 1))
+    print("\nARIMA Model Summary:")
+    print(forecaster.arima_summary())
+    
+    arima_pred = forecaster.arima_forecast(periods=forecast_periods)
+    print(f"\nARIMA Forecast (next {forecast_periods} values):")
+    print(arima_pred)
+    
+    # 5. Plot Naive Forecast
+    print("\n" + "-" * 60)
+    print("GENERATING VISUALIZATIONS")
+    print("-" * 60)
+    forecaster.plot_forecast(naive_pred, title="Naive Forecast")
+    
+    # 6. Plot ARIMA Forecast
+    forecaster.plot_forecast(arima_pred, title="ARIMA Forecast")
+    
+    # 7. Calculate and plot residuals
+    residuals = forecaster.train_data - forecaster.arima_fitted.fittedvalues
+    forecaster.plot_residuals(residuals)
+    
+    print("\nTime series forecasting analysis complete!")
     
 if __name__ == "__main__":
     main()
