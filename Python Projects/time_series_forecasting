@@ -296,7 +296,6 @@ def main():
     print(drift_pred)
     
     # 2. Exponential Smoothing
-    print("EXPONENTIAL SMOOTHING")
     exp_smooth_pred = forecaster.exponential_smoothing(alpha=0.3, periods=forecast_periods)
     print(f"\nExponential Smoothing Forecast (alpha=0.3):")
     print(exp_smooth_pred)
@@ -334,7 +333,7 @@ def main():
     residuals = forecaster.train_data - forecaster.arima_fitted.fittedvalues
     forecaster.plot_residuals(residuals)
     
-    print("\nTime series forecasting analysis complete!")
+    print("\nTime series forecasting analysis complete.")
     
 if __name__ == "__main__":
     main()
