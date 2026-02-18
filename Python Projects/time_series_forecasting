@@ -1,6 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.dates as mdates
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from statsmodels.tsa.arima.model import ARIMA
@@ -179,8 +180,30 @@ class TimeSeriesForecaster:
     #Evaluation Metrics
     def plot_forecast(self, forecast, actual=None, title="Forecast vs Actual"):
         plt.figure(figsize=(12, 6))
+        # Plot historical data (use datetime index if available)
         plt.plot(self.data.index, self.data.values, label='Historical Data', color='blue')
-        forecast_index = range(len(self.data), len(self.data) + len(forecast))
+
+        # Infer frequency for forecasting index (fallback to weekly)
+        if isinstance(self.data.index, pd.DatetimeIndex) and len(self.data.index) > 1:
+            median_delta = (pd.Series(self.data.index).diff().median())
+            if pd.isna(median_delta) or median_delta == pd.Timedelta(0):
+                freq = 'W'
+                delta = pd.Timedelta(weeks=1)
+            else:
+                # Use median delta as frequency
+                delta = median_delta
+                days = int(delta / pd.Timedelta(days=1))
+                if days >= 7 and days % 7 == 0:
+                    freq = f'{days // 7}W'
+                else:
+                    freq = f'{max(days,1)}D'
+
+            start_date = self.data.index[-1] + delta
+            forecast_index = pd.date_range(start=start_date, periods=len(forecast), freq=freq)
+        else:
+            # fallback to integer index if datetimes unavailable
+            forecast_index = range(len(self.data), len(self.data) + len(forecast))
+
         plt.plot(forecast_index, forecast, label='Forecast', color='orange')
         
         if actual is not None:
@@ -190,6 +213,11 @@ class TimeSeriesForecaster:
         plt.xlabel('Time')
         plt.ylabel('Value')
         plt.legend()
+        # Format x-axis to show Year-Month when using dates
+        ax = plt.gca()
+        if len(getattr(self.data, 'index', [])) and isinstance(self.data.index, pd.DatetimeIndex):
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+            plt.gcf().autofmt_xdate()
         # Save figure instead of showing (allows non-GUI execution)
         filename = title.replace(' ', '_').lower() + '.png'
         plt.savefig(filename, dpi=100)
@@ -215,20 +243,23 @@ def main():
     
     try:
         data_path = 'nvidia_stock_weekly.csv'
+        # Parse dates if a Date column exists
         df = pd.read_csv(data_path)
-        
+        if 'Date' in df.columns:
+            df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+            df = df.dropna(subset=['Date']).sort_values('Date')
+            df.set_index('Date', inplace=True)
+
+        # Prefer Close column if available
         if 'Close' in df.columns:
             timeseries_data = df['Close'].dropna()
         else:
-            numeric_cols = [col for col in df.columns if df[col].dtype in [np.number] and col != 'Date']
-            if numeric_cols:
+            # pick first numeric column
+            numeric_cols = df.select_dtypes(include=[np.number]).columns
+            if len(numeric_cols) > 0:
                 timeseries_data = df[numeric_cols[0]].dropna()
             else:
-                numeric_cols = df.select_dtypes(include=[np.number]).columns
-                if len(numeric_cols) > 0:
-                    timeseries_data = df[numeric_cols[0]].dropna()
-                else:
-                    raise ValueError("No numeric columns found in CSV")
+                raise ValueError("No numeric columns found in CSV")
     except FileNotFoundError:
         print("Data file not found. Using synthetic data for demonstration.")
         np.random.seed(42)
